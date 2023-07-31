@@ -18,6 +18,8 @@
  */
 #include "datastorequery.h"
 
+#include <QElapsedTimer>
+
 #include "log.h"
 #include "applicationdomaintype.h"
 
@@ -90,7 +92,7 @@ class Source : public FilterBase {
         mHaveIncrementalChanges = true;
     }
 
-    bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE
+    bool next(const std::function<void(const ResultSet::Result &result)> &callback) override
     {
         if (mHaveIncrementalChanges) {
             if (mIncrementalIt == mIncrementalIds.constEnd()) {
@@ -127,7 +129,7 @@ public:
     }
     ~Collector() override = default;
 
-    bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE
+    bool next(const std::function<void(const ResultSet::Result &result)> &callback) override
     {
         return mSource->next(callback);
     }
@@ -138,6 +140,7 @@ public:
     typedef QSharedPointer<Filter> Ptr;
 
     QHash<QByteArrayList, Sink::QueryBase::Comparator> propertyFilter;
+    std::function<bool(const ApplicationDomain::ApplicationDomainType &)> filterFunction;
 
     Filter(FilterBase::Ptr source, DataStoreQuery *store)
         : FilterBase(source, store)
@@ -147,7 +150,7 @@ public:
 
     ~Filter() override{}
 
-    bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
+    bool next(const std::function<void(const ResultSet::Result &result)> &callback) override {
         bool foundValue = false;
         while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
                 SinkTraceCtx(mDatastore->mLogCtx) << "Filter: " << result.entity.identifier() << operationName(result.operation);
@@ -175,18 +178,23 @@ public:
     }
 
     bool matchesFilter(const ApplicationDomain::ApplicationDomainType &entity) {
-        for (const auto &filterProperty : propertyFilter.keys()) {
-            QVariant property;
-            if (filterProperty.size() == 1) {
-                property = entity.getProperty(filterProperty[0]);
-            } else {
-                QVariantList propList;
-                for (const auto &propName : filterProperty) {
-                    propList.push_back(entity.getProperty(propName));
+        if (filterFunction) {
+            return filterFunction(entity);
+        }
+        for (auto it =  propertyFilter.begin(); it !=  propertyFilter.end(); it++) {
+            const auto filterProperty = it.key();
+            const QVariant property = [&] () -> QVariant {
+                if (filterProperty.size() == 1) {
+                    return entity.getProperty(filterProperty[0]);
+                } else {
+                    QVariantList propList;
+                    for (const auto &propName : filterProperty) {
+                        propList.push_back(entity.getProperty(propName));
+                    }
+                    return propList;
                 }
-                property = propList;
-            }
-            const auto comparator = propertyFilter.value(filterProperty);
+            }();
+            const auto comparator = it.value();
             //Reevaluate the fulltext filter during incremental queries.
             if (comparator.comparator == QueryBase::Comparator::Fulltext) {
                 //Don't apply it for initial results, since the fulltext index is always the source set.
@@ -208,43 +216,52 @@ public:
     }
 };
 
+
+struct Aggregator {
+    QueryBase::Aggregator::Operation operation;
+    QByteArray property;
+    QByteArray resultProperty;
+
+    Aggregator(QueryBase::Aggregator::Operation o, const QByteArray &property_, const QByteArray &resultProperty_)
+        : operation(o), property(property_), resultProperty(resultProperty_)
+    {
+
+    }
+
+    void process(const QVariant &value) {
+        if (operation == QueryBase::Aggregator::Collect) {
+            mResult = mResult.toList() << value;
+        } else if (operation == QueryBase::Aggregator::Count) {
+            mResult = mResult.toInt() + 1;
+        } else {
+            Q_ASSERT(false);
+        }
+    }
+
+    void process(const Sink::ApplicationDomain::ApplicationDomainType &entity) {
+        if (!property.isEmpty()) {
+            process(entity.getProperty(property));
+        } else {
+            process(QVariant{});
+        }
+    }
+
+    void reset()
+    {
+        mResult.clear();
+    }
+
+    QVariant result() const
+    {
+        return mResult;
+    }
+private:
+    QVariant mResult;
+};
+
 class Reduce : public Filter {
 public:
     typedef QSharedPointer<Reduce> Ptr;
-
-    struct Aggregator {
-        QueryBase::Reduce::Aggregator::Operation operation;
-        QByteArray property;
-        QByteArray resultProperty;
-
-        Aggregator(QueryBase::Reduce::Aggregator::Operation o, const QByteArray &property_, const QByteArray &resultProperty_)
-            : operation(o), property(property_), resultProperty(resultProperty_)
-        {
-
-        }
-
-        void process(const QVariant &value) {
-            if (operation == QueryBase::Reduce::Aggregator::Collect) {
-                mResult = mResult.toList() << value;
-            } else if (operation == QueryBase::Reduce::Aggregator::Count) {
-                mResult = mResult.toInt() + 1;
-            } else {
-                Q_ASSERT(false);
-            }
-        }
-
-        void reset()
-        {
-            mResult.clear();
-        }
-
-        QVariant result() const
-        {
-            return mResult;
-        }
-    private:
-        QVariant mResult;
-    };
 
     struct PropertySelector {
         QueryBase::Reduce::Selector selector;
@@ -299,7 +316,7 @@ public:
 
     ~Reduce() override{}
 
-    void updateComplete() Q_DECL_OVERRIDE
+    void updateComplete() override
     {
         SinkTraceCtx(mDatastore->mLogCtx) << "Reduction update is complete.";
         mIncrementallyReducedValues.clear();
@@ -342,12 +359,9 @@ public:
                 }
                 reducedAndFilteredResults << r;
                 Q_ASSERT(operation != Sink::Operation_Removal);
+
                 for (auto &aggregator : mAggregators) {
-                    if (!aggregator.property.isEmpty()) {
-                        aggregator.process(entity.getProperty(aggregator.property));
-                    } else {
-                        aggregator.process(QVariant{});
-                    }
+                    aggregator.process(entity);
                 }
 
                 const auto selectionValue = entity.getProperty(mSelectionProperty);
@@ -373,7 +387,7 @@ public:
         return {selectionResult, reducedAndFilteredResults, aggregateValues};
     }
 
-    bool next(const std::function<void(const ResultSet::Result &)> &callback) Q_DECL_OVERRIDE {
+    bool next(const std::function<void(const ResultSet::Result &)> &callback) override {
         bool foundValue = false;
         while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
                 const auto reductionValue = [&] {
@@ -478,7 +492,7 @@ public:
 
     ~Bloom() override{}
 
-    bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
+    bool next(const std::function<void(const ResultSet::Result &result)> &callback) override {
         if (!mBloomed) {
             //Initially we bloom on the first value that matches.
             //From there on we just filter.
@@ -506,6 +520,52 @@ public:
     }
     QVariant mBloomValue;
     bool mBloomed = false;
+};
+
+
+class ReferenceResolver : public Filter {
+public:
+    typedef QSharedPointer<ReferenceResolver> Ptr;
+
+    QByteArray mReferenceProperty;
+    QList<Aggregator> mAggregators;
+
+    ReferenceResolver(const QByteArray &referenceProperty, FilterBase::Ptr source, DataStoreQuery *store)
+        : Filter(source, store),
+        mReferenceProperty(referenceProperty)
+    {
+
+    }
+
+    ~ReferenceResolver() override{}
+
+    void resolveReference(const ApplicationDomain::ApplicationDomainType &entity) {
+        auto parentFolder = entity.getProperty(mReferenceProperty).toByteArray();
+        while (!parentFolder.isEmpty()) {
+            //TODO abort on error
+            readEntity(Identifier::fromDisplayByteArray(parentFolder), [&](const Sink::ApplicationDomain::ApplicationDomainType &e, Sink::Operation operation) {
+                for (auto &aggregator : mAggregators) {
+                    aggregator.process(e);
+                }
+
+                parentFolder = e.getProperty(mReferenceProperty).toByteArray();
+            });
+        }
+    }
+
+    bool next(const std::function<void(const ResultSet::Result &result)> &callback) override {
+        return mSource->next([this, callback](const ResultSet::Result &result) {
+            for (auto &aggregator : mAggregators) {
+                aggregator.reset();
+            }
+            resolveReference(result.entity);
+            QMap<QByteArray, QVariant> aggregateValues = result.aggregateValues;
+            for (const auto &aggregator : mAggregators) {
+                aggregateValues.insert(aggregator.resultProperty, aggregator.result());
+            }
+            callback(ResultSet::Result{result.entity, result.operation, aggregateValues, result.aggregateIds});
+        });
+    }
 };
 
 DataStoreQuery::DataStoreQuery(const Sink::QueryBase &query, const QByteArray &type, EntityStore &store)
@@ -556,7 +616,13 @@ void DataStoreQuery::readPrevious(const Identifier &id, const std::function<void
 
 QVector<Identifier> DataStoreQuery::indexLookup(const QByteArray &property, const QVariant &value, const QVector<Sink::Storage::Identifier> &filter)
 {
-    return mStore.indexLookup(mType, property, value, filter);
+    QElapsedTimer timer;
+    timer.start();
+    const auto result =  mStore.indexLookup(mType, property, value, filter);
+    if (timer.elapsed() > 2) {
+        SinkLogCtx(mLogCtx) << "Index lookup returned " << result.size() << "results, in " << Sink::Log::TraceTime(timer.elapsed());
+    }
+    return result;
 }
 
 /* ResultSet DataStoreQuery::filterAndSortSet(ResultSet &resultSet, const FilterFunction &filter, const QByteArray &sortProperty) */
@@ -687,8 +753,13 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
             return Source::Ptr::create(ids, this, resultSetIsFinal);
         } else {
             QSet<QByteArrayList> appliedFilters;
+            QElapsedTimer timer;
+            timer.start();
             auto resultSet = mStore.indexLookup(mType, query, appliedFilters, appliedSorting);
-            if (!appliedFilters.isEmpty()) {
+            if (timer.elapsed() > 2) {
+                SinkLogCtx(mLogCtx) << "Index lookup returned " << resultSet.size() << "results, in " << Sink::Log::TraceTime(timer.elapsed());
+            }
+            if (!appliedFilters.isEmpty() || !appliedSorting.isEmpty()) {
                 //We have an index lookup as starting point
                 return Source::Ptr::create(resultSet, this);
             }
@@ -721,16 +792,28 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
         } else if (auto filter = stage.dynamicCast<Query::Reduce>()) {
             auto reduction = ::Reduce::Ptr::create(filter->property, filter->selector.property, filter->selector.comparator, baseSet, this);
             for (const auto &aggregator : qAsConst(filter->aggregators)) {
-                reduction->mAggregators << ::Reduce::Aggregator(aggregator.operation, aggregator.propertyToCollect, aggregator.resultProperty);
+                reduction->mAggregators << ::Aggregator(aggregator.operation, aggregator.propertyToCollect, aggregator.resultProperty);
             }
             for (const auto &propertySelector : qAsConst(filter->propertySelectors)) {
                 reduction->mSelectors << ::Reduce::PropertySelector(propertySelector.selector, propertySelector.resultProperty);
             }
             reduction->propertyFilter = query.getBaseFilters();
             baseSet = reduction;
+        } else if (auto filter = stage.dynamicCast<Query::ReferenceResolver>()) {
+            auto reduction = ::ReferenceResolver::Ptr::create(filter->referenceProperty, baseSet, this);
+            for (const auto &aggregator : qAsConst(filter->aggregators)) {
+                reduction->mAggregators << ::Aggregator(aggregator.operation, aggregator.propertyToCollect, aggregator.resultProperty);
+            }
+            baseSet = reduction;
         } else if (auto filter = stage.dynamicCast<Query::Bloom>()) {
             baseSet = Bloom::Ptr::create(filter->property, baseSet, this);
         }
+    }
+
+    if (query.getPostQueryFilter()) {
+        auto f = Filter::Ptr::create(baseSet, this);
+        f->filterFunction = query.getPostQueryFilter();
+        baseSet = f;
     }
 
     mCollector = Collector::Ptr::create(baseSet, this);

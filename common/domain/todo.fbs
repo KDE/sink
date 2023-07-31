@@ -12,6 +12,7 @@ table Todo {
   categories:[string];
   ical:string;
   calendar:string;
+  parentUid:string;
 }
 
 root_type Todo;

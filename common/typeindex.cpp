@@ -46,8 +46,11 @@ static QByteArray getByteArray(const QVariant &value)
             return ba;
         }
     }
-    if (value.isValid() && !value.toByteArray().isEmpty()) {
-        return value.toByteArray();
+    if (value.isValid()) {
+        const auto ba = value.toByteArray();
+        if (!ba.isEmpty()) {
+            return ba;
+        }
     }
     // LMDB can't handle empty keys, so use something different
     return "toplevel";
@@ -294,6 +297,7 @@ static QVector<Identifier> indexLookup(Index &index, QueryBase::Comparator filte
         index.lookup(lookupKey,
             [&](const QByteArray &value) {
                 keys << Identifier::fromInternalByteArray(value);
+                return true;
             },
             [lookupKey](const Index::Error &error) {
                 SinkWarning() << "Lookup error in index: " << error.message << lookupKey;
@@ -341,6 +345,26 @@ static QVector<Identifier> sortedIndexLookup(Index &index, QueryBase::Comparator
     return keys;
 }
 
+static QVector<Identifier> sortedIndexLookup(Index &index, int limit)
+{
+    QVector<Identifier> keys;
+    int count = 0;
+    index.lookup("",
+        [&](const QByteArray &value) -> bool {
+            keys << Identifier::fromInternalByteArray(value);
+            count++;
+            if (limit && count > limit) {
+                return false;
+            }
+            return true;
+        },
+        [](const Index::Error &error) {
+            SinkWarning() << "Lookup error in index: " << error.message;
+        },
+        true);
+    return keys;
+}
+
 static QVector<Identifier> sampledIndexLookup(Index &index, QueryBase::Comparator filter)
 {
     if (filter.comparator != Query::Comparator::Overlap) {
@@ -378,16 +402,16 @@ QVector<Identifier> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
     const auto baseFilters = query.getBaseFilters();
     for (auto it = baseFilters.constBegin(); it != baseFilters.constEnd(); it++) {
         if (it.value().comparator == QueryBase::Comparator::Fulltext) {
-            FulltextIndex fulltextIndex{resourceInstanceId};
-            QVector<Identifier> keys;
-            const auto ids = fulltextIndex.lookup(it.value().value.toString());
-            keys.reserve(ids.size());
-            for (const auto &id : ids) {
-                keys.append(Identifier::fromDisplayByteArray(id));
-            }
             appliedFilters << it.key();
-            SinkTraceCtx(mLogCtx) << "Fulltext index lookup found " << keys.size() << " keys.";
-            return keys;
+            appliedSorting = "date";
+            if (FulltextIndex::exists(resourceInstanceId)) {
+                FulltextIndex fulltextIndex{resourceInstanceId};
+                const auto ids = fulltextIndex.lookup(it.value().value.toString());
+                SinkTraceCtx(mLogCtx) << "Fulltext index lookup found " << ids.size() << " keys.";
+                return ids;
+            }
+            SinkTraceCtx(mLogCtx) << "Fulltext index doesn't exist.";
+            return {};
         }
     }
 
@@ -423,6 +447,17 @@ QVector<Identifier> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
             appliedFilters.insert({property});
             SinkTraceCtx(mLogCtx) << "Sorted index lookup on " << property << " found " << keys.size() << " keys.";
             return keys;
+        } else if (query.sortProperty() == property) {
+            Index index(sortedIndexName(property), transaction);
+            //FIXME Setting a limit here breaks our fetchMore logic,
+            //because our initial query will just return
+            //as many results as queried for. We now just query for 10 times
+            //the amount, so fetchMore works for a while, and we can avoid loading
+            //all index results. The primary usecase for this is loading all emails sorted
+            //by date (That's a lot of results).
+            const auto keys = sortedIndexLookup(index, query.limit() * 10);
+            appliedSorting = property;
+            return keys;
         }
     }
 
@@ -444,16 +479,15 @@ QVector<Identifier> TypeIndex::lookup(const QByteArray &property, const QVariant
 {
     SinkTraceCtx(mLogCtx) << "Index lookup on property: " << property << mSecondaryProperties.keys() << mProperties;
     if (property == "fulltext") {
-        FulltextIndex fulltextIndex{resourceInstanceId};
-        const QByteArray entityId = filter.isEmpty() ? QByteArray{} : filter.first().toDisplayByteArray();
-        const auto ids = fulltextIndex.lookup(value.toString(), entityId);
-        QVector<Identifier> keys;
-        keys.reserve(ids.size());
-        for (const auto &id : ids) {
-            keys.append(Identifier::fromDisplayByteArray(id));
+        if (FulltextIndex::exists(resourceInstanceId)) {
+            FulltextIndex fulltextIndex{resourceInstanceId};
+            const Sink::Storage::Identifier entityId = filter.isEmpty() ? Sink::Storage::Identifier{} : filter.first();
+            const auto ids = fulltextIndex.lookup(value.toString(), entityId);
+            SinkTraceCtx(mLogCtx) << "Fulltext index lookup found " << ids.size() << " keys.";
+            return ids;
         }
-        SinkTraceCtx(mLogCtx) << "Fulltext index lookup found " << keys.size() << " keys.";
-        return keys;
+        SinkTraceCtx(mLogCtx) << "Fulltext index doesn't exist.";
+        return {};
     }
     if (mProperties.contains(property)) {
         QVector<Identifier> keys;
@@ -462,6 +496,7 @@ QVector<Identifier> TypeIndex::lookup(const QByteArray &property, const QVariant
         index.lookup(lookupKey,
             [&](const QByteArray &value) {
                 keys << Identifier::fromInternalByteArray(value);
+                return true;
             },
             [property](const Index::Error &error) {
                 SinkWarning() << "Error in index: " << error.message << property;
@@ -477,7 +512,7 @@ QVector<Identifier> TypeIndex::lookup(const QByteArray &property, const QVariant
         QVector<QByteArray> secondaryKeys;
         Index index(indexName(property + resultProperty), transaction);
         const auto lookupKey = getByteArray(value);
-        index.lookup(lookupKey, [&](const QByteArray &value) { secondaryKeys << value; },
+        index.lookup(lookupKey, [&](const QByteArray &value) { secondaryKeys << value; return true; },
             [property](const Index::Error &error) {
                 SinkWarning() << "Error in index: " << error.message << property;
             });
@@ -524,7 +559,7 @@ QVector<QByteArray> TypeIndex::secondaryLookup<QByteArray>(const QByteArray &lef
     Index index(indexName(leftName + rightName), *mTransaction);
     const auto lookupKey = getByteArray(value);
     index.lookup(
-        lookupKey, [&](const QByteArray &value) { keys << QByteArray{value.constData(), value.size()}; }, [=](const Index::Error &error) { SinkWarning() << "Lookup error in secondary index: " << error.message << value << lookupKey; });
+        lookupKey, [&](const QByteArray &value) { keys << QByteArray{value.constData(), value.size()}; return true; }, [=](const Index::Error &error) { SinkWarning() << "Lookup error in secondary index: " << error.message << value << lookupKey; });
 
     return keys;
 }

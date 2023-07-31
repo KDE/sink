@@ -2,13 +2,15 @@
 # SPDX-License-Identifier: CC0-1.0
 
 Dependencies:
-- 'on': ['@all']
+- 'on': ['Linux/Qt5', 'FreeBSD/Qt5', 'Windows/Qt5']
   'require':
     'frameworks/extra-cmake-modules': '@latest'
     'frameworks/kcoreaddons': '@latest'
-    'pim/kmime': '@latest'
-    'pim/kimap2': '@same'
-    'pim/kdav2': '@same'
     'frameworks/kcontacts': '@latest'
     'frameworks/kcalendarcore': '@latest'
-    'libraries/kasync': '@same'
+    'pim/kimap2' : '@latest'
+    'pim/kdav2' : '@latest'
+    'libraries/kasync' : '@latest'
+
+Options:
+  require-passing-tests-on: [ 'Linux/Qt5']

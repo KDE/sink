@@ -312,7 +312,7 @@ void MailThreadTest::testNoParentsWithModifications()
         Index index(Sink::storageLocation(), mResourceInstanceIdentifier, indexName, Sink::Storage::DataStore::ReadOnly);
         QByteArrayList keys;
         index.lookup(lookupKey,
-            [&](const QByteArray &value) { keys << QByteArray{value.constData(), value.size()}; },
+            [&](const QByteArray &value) { keys << QByteArray{value.constData(), value.size()}; return true; },
             [=](const Index::Error &error) { SinkWarning() << "Lookup error in secondary index: " << error.message; },
             false);
         return keys;

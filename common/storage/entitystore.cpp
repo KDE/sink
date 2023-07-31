@@ -281,6 +281,11 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomainType &di
 bool EntityStore::modify(const QByteArray &type, const ApplicationDomainType &current, ApplicationDomainType newEntity, bool replayToSource)
 {
     SinkTraceCtx(d->logCtx) << "Modified entity: " << newEntity;
+    //This should not normally happen and is possibly a client defect
+    if (newEntity.changedProperties().isEmpty()) {
+        SinkWarningCtx(d->logCtx) << "Attempted an empty modification: " << newEntity;
+        return false;
+    }
 
     const auto identifier = Identifier::fromDisplayByteArray(newEntity.identifier());
     d->typeIndex(type).modify(identifier, current, newEntity, d->transaction, d->resourceContext.instanceId());
@@ -495,7 +500,8 @@ void EntityStore::readLatest(const QByteArray &type, const Identifier &id, const
     Q_ASSERT(d);
     const size_t revision = DataStore::getLatestRevisionFromUid(d->getTransaction(), id);
     if (!revision) {
-        SinkWarningCtx(d->logCtx) << "Failed to readLatest: " << type << id;
+        //This is not an error. We rely on this when looking for an id in resource that don't have it.
+        SinkTraceCtx(d->logCtx) << "Failed to readLatest: " << type << id;
         return;
     }
     auto db = DataStore::mainDatabase(d->getTransaction(), type);

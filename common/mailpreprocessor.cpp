@@ -24,8 +24,8 @@
 #include <QTextDocument>
 #include <QGuiApplication>
 #include <QUuid>
-#include <KMime/KMime/KMimeMessage>
-#include <KMime/KMime/Headers>
+#include <KMime/KMimeMessage>
+#include <KMime/Headers>
 #include <mime/mimetreeparser/objecttreeparser.h>
 
 #include "pipeline.h"
@@ -34,10 +34,10 @@
 
 using namespace Sink;
 
-static QString getString(const KMime::Headers::Base *header)
+static QString getString(const KMime::Headers::Base *header, const QString &defaultValue = {})
 {
     if (!header) {
-        return {};
+        return defaultValue;
     }
     return header->asUnicodeString() ;
 }
@@ -45,9 +45,14 @@ static QString getString(const KMime::Headers::Base *header)
 static QDateTime getDate(const KMime::Headers::Base *header)
 {
     if (!header) {
-        return {};
+        return QDateTime::currentDateTimeUtc();
     }
     return static_cast<const KMime::Headers::Date*>(header)->dateTime();
+}
+
+static Sink::ApplicationDomain::Mail::Contact fromMailbox(const KMime::Types::Mailbox &mb)
+{
+    return Sink::ApplicationDomain::Mail::Contact{mb.name(), mb.address()};
 }
 
 static Sink::ApplicationDomain::Mail::Contact getContact(const KMime::Headers::Base *h)
@@ -56,9 +61,8 @@ static Sink::ApplicationDomain::Mail::Contact getContact(const KMime::Headers::B
         return {};
     }
     const auto header = static_cast<const KMime::Headers::Generics::MailboxList*>(h);
-    const auto name = header->displayNames().isEmpty() ? QString() : header->displayNames().first();
-    const auto address = header->addresses().isEmpty() ? QString() : header->addresses().first();
-    return Sink::ApplicationDomain::Mail::Contact{name, address};
+    const auto mb = header->mailboxes().isEmpty() ? KMime::Types::Mailbox{} : header->mailboxes().first();
+    return fromMailbox(mb);
 }
 
 static QList<Sink::ApplicationDomain::Mail::Contact> getContactList(const KMime::Headers::Base *h)
@@ -69,7 +73,7 @@ static QList<Sink::ApplicationDomain::Mail::Contact> getContactList(const KMime:
     const auto header = static_cast<const KMime::Headers::Generics::AddressList*>(h);
     QList<Sink::ApplicationDomain::Mail::Contact> list;
     for (const auto &mb : header->mailboxes()) {
-        list << Sink::ApplicationDomain::Mail::Contact{mb.name(), mb.address()};
+        list << fromMailbox(mb);
     }
     return list;
 }
@@ -109,21 +113,31 @@ static QString toPlain(const QString &html)
 void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, const QByteArray &data)
 {
     if (data.isEmpty()) {
+        //Always set a dummy subject and date, so we can find the message
+        //In test we sometimes pre-set the extracted date though, so we check that first.
+        if (mail.getSubject().isEmpty()) {
+            mail.setExtractedSubject("Error: Empty message");
+        }
+        if (!mail.getDate().isValid()) {
+            mail.setExtractedDate(QDateTime::currentDateTimeUtc());
+        }
         return;
     }
     MimeTreeParser::ObjectTreeParser otp;
     otp.parseObjectTree(data);
     otp.decryptAndVerify();
 
-    auto partList = otp.collectContentParts();
-    if (partList.isEmpty()) {
-        Q_ASSERT(false);
-        return;
-    }
-    auto part = partList[0];
+    const auto partList = otp.collectContentParts();
+    const auto part = [&] () -> MimeTreeParser::MessagePartPtr {
+        if (!partList.isEmpty()) {
+            return partList[0];
+        }
+        //Extract headers also if there are only attachment parts.
+        return  otp.parsedPart();
+    }();
     Q_ASSERT(part);
 
-    mail.setExtractedSubject(getString(part->header(KMime::Headers::Subject::staticType())));
+    mail.setExtractedSubject(getString(part->header(KMime::Headers::Subject::staticType()), "Error: No subject"));
     mail.setExtractedSender(getContact(part->header(KMime::Headers::From::staticType())));
     mail.setExtractedTo(getContactList(part->header(KMime::Headers::To::staticType())));
     mail.setExtractedCc(getContactList(part->header(KMime::Headers::Cc::staticType())));
@@ -197,6 +211,7 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
 
     //Prepare content for indexing;
     mail.setProperty("index", QVariant::fromValue(contentToIndex));
+    mail.setProperty("indexDate", QVariant::fromValue(mail.getDate()));
 }
 
 void MailPropertyExtractor::newEntity(Sink::ApplicationDomain::Mail &mail)

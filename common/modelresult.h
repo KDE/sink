@@ -67,6 +67,8 @@ public:
 
     void setFetcher(const std::function<void()> &fetcher);
 
+    void updateQuery(const Sink::Query &query);
+
 private:
     void add(const Ptr &value);
     void modify(const Ptr &value);
@@ -83,6 +85,7 @@ private:
     QMap<qint64 /* parent entity id */, QList<qint64> /* child entity id*/> mTree;
     QMap<qint64 /* child entity id */, qint64 /* parent entity id*/> mParents;
     QMap<qint64 /* entity id */, int /* Status */> mEntityStatus;
+    QSet<qint64> mEntitiesToRemove;
     bool mFetchInProgress{false};
     bool mFetchedAll{false};
     bool mFetchComplete{false};

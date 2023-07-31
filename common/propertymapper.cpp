@@ -22,14 +22,53 @@
 #include "applicationdomaintype.h"
 #include <QDateTime>
 #include <QDataStream>
+#include <zstd.h>
 #include "mail_generated.h"
 #include "contact_generated.h"
+
+static QByteArray decompress(const char *data, size_t size)
+{
+    auto decompressedSize = ZSTD_getFrameContentSize(data, size);
+    if (decompressedSize == ZSTD_CONTENTSIZE_UNKNOWN || decompressedSize == ZSTD_CONTENTSIZE_ERROR) {
+        qWarning() << "Error during decompression: invalid frame content size." << decompressedSize;
+        return{};
+    }
+
+    QByteArray result;
+    result.resize(decompressedSize);
+    const auto res = ZSTD_decompress(result.data(), result.size(), data, size);
+    if (ZSTD_isError(res)) {
+        qWarning() << "Error during decompression" << ZSTD_getErrorName(res);
+        return {};
+    }
+    result.resize(res);
+    return result;
+}
+
+static QByteArray compress(const QByteArray &ba)
+{
+    QByteArray result;
+    result.resize(ZSTD_compressBound(ba.size()));
+    //The default compression level of the zstd tool
+    static int compressionLevel = 3;
+    const auto res = ZSTD_compress(result.data(), result.size(), ba.data(), ba.size(), compressionLevel);
+    if (ZSTD_isError(res)) {
+        qWarning() << "Error during compression" << ZSTD_getErrorName(res);
+        return {};
+    }
+    result.resize(res);
+    return result;
+}
 
 template <>
 flatbuffers::uoffset_t variantToProperty<QString>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
 {
     if (property.isValid()) {
-        return fbb.CreateString(property.toString().toStdString()).o;
+        const auto str = property.toString();
+        if (str.isEmpty()) {
+            return 0;
+        }
+        return fbb.CreateString(str.toStdString()).o;
     }
     return 0;
 }
@@ -48,7 +87,11 @@ flatbuffers::uoffset_t variantToProperty<QByteArray>(const QVariant &property, f
 {
     if (property.isValid()) {
         const auto ba = property.toByteArray();
-        const auto s = fbb.CreateString(ba.constData(), ba.size());
+        if (ba.isEmpty()) {
+            return 0;
+        }
+        const auto result = compress(ba);
+        const auto s = fbb.CreateString(result.constData(), result.size());
         return s.o;
     }
     return 0;
@@ -141,7 +184,7 @@ QString propertyToString(const flatbuffers::String *property)
 {
     if (property) {
         // We have to copy the memory, otherwise it would become eventually invalid
-        return QString::fromStdString(property->str());
+        return QString::fromUtf8(reinterpret_cast<const char *>(property->Data()), property->size());
     }
     return QString();
 }
@@ -151,7 +194,7 @@ QVariant propertyToVariant<QString>(const flatbuffers::String *property)
 {
     if (property) {
         // We have to copy the memory, otherwise it would become eventually invalid
-        return QString::fromStdString(property->str());
+        return propertyToString(property);
     }
     return QVariant();
 }
@@ -161,7 +204,7 @@ QVariant propertyToVariant<Sink::ApplicationDomain::Reference>(const flatbuffers
 {
     if (property) {
         // We have to copy the memory, otherwise it would become eventually invalid
-        return QVariant::fromValue(Sink::ApplicationDomain::Reference{QString::fromStdString(property->str()).toUtf8()});
+        return QVariant::fromValue(Sink::ApplicationDomain::Reference{QByteArray(reinterpret_cast<const char *>(property->Data()), property->size())});
     }
     return QVariant();
 }
@@ -170,8 +213,7 @@ template <>
 QVariant propertyToVariant<QByteArray>(const flatbuffers::String *property)
 {
     if (property) {
-        // We have to copy the memory, otherwise it would become eventually invalid
-        return QByteArray(property->c_str(), property->Length());
+        return decompress(property->c_str(), property->size());
     }
     return QVariant();
 }
@@ -181,7 +223,7 @@ QVariant propertyToVariant<QByteArray>(const flatbuffers::Vector<uint8_t> *prope
 {
     if (property) {
         // We have to copy the memory, otherwise it would become eventually invalid
-        return QByteArray(reinterpret_cast<const char *>(property->Data()), property->Length());
+        return QByteArray(reinterpret_cast<const char *>(property->Data()), property->size());
     }
     return QVariant();
 }

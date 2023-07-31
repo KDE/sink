@@ -149,6 +149,12 @@ size_t DataStore::getLatestRevisionFromUid(DataStore::Transaction &t, const Iden
     t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues)
         .findLast(uid.toInternalByteArray(), [&revision](const QByteArray &key, const QByteArray &value) {
             revision = byteArrayToSizeT(value);
+        },
+        [](const Error &error) {
+            //This is expected if we attempt to lookup an id that doesn't exist.
+            if (error.code != DataStore::NotFound) {
+                SinkWarning() << "Error during getLatestRevisionFromUid: " << error;
+            }
         });
 
     return revision;

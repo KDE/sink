@@ -3,10 +3,12 @@ include_directories(${CMAKE_BINARY_DIR})
 
 include(SinkTest)
 
-auto_tests (
+integration_tests (
     caldavtest
 )
-target_link_libraries(caldavtest sink_resource_caldav)
+if (${ENABLE_INTEGRATION_TESTS})
+    target_link_libraries(caldavtest sink_resource_caldav)
+endif()
 
 manual_tests (
     caldavsyncbenchmark

@@ -4,7 +4,7 @@
 #include "resourceaccess.h"
 #include "listener.h"
 #include "commands.h"
-#include "testutils.h"
+#include "test.h"
 #include "handshake_generated.h"
 
 /**
@@ -66,7 +66,6 @@ private slots:
 
     void testResourceAccessReuse()
     {
-        qDebug();
         const QByteArray resourceIdentifier("test");
         Listener listener(resourceIdentifier, "");
         Sink::ResourceAccess resourceAccess(resourceIdentifier, "");
@@ -109,6 +108,47 @@ private slots:
         qDebug() << "time.elapsed " << time.elapsed();
         QVERIFY(time.elapsed() < 3500);
         QVERIFY(time.elapsed() > 2500);
+    }
+
+    void testResourceAccessShutdown()
+    {
+        const QByteArray resourceIdentifier("test");
+        Listener listener(resourceIdentifier, "");
+        Sink::ResourceAccess resourceAccess(resourceIdentifier, "");
+        resourceAccess.open();
+        QTRY_VERIFY(resourceAccess.isReady());
+        VERIFYEXEC(resourceAccess.shutdown());
+        QTRY_VERIFY(!resourceAccess.isReady());
+    }
+
+    void testResourceAccessShutdownWithCommand()
+    {
+        const QByteArray resourceIdentifier("test");
+        for (int i = 0; i < 10; i++) {
+            Listener listener(resourceIdentifier, "");
+            auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(resourceIdentifier, "");
+            //This automatically connects
+            VERIFYEXEC(resourceAccess->sendCommand(Sink::Commands::PingCommand));
+            QVERIFY(resourceAccess->isReady());
+            VERIFYEXEC(resourceAccess->shutdown());
+        }
+    }
+
+    /**
+     * Make sure we handle a shutdown while commands being written to the resource.
+     */
+    void testResourceAccessShutdownWithCommand2()
+    {
+        const QByteArray resourceIdentifier("test");
+        Listener listener(resourceIdentifier, "");
+        auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(resourceIdentifier, "");
+        for (int i = 0; i < 10; i++) {
+            resourceAccess->sendCommand(Sink::Commands::PingCommand).exec();
+        }
+        resourceAccess->shutdown().exec();
+        for (int i = 0; i < 10; i++) {
+            resourceAccess->sendCommand(Sink::Commands::PingCommand).exec();
+        }
     }
 };
 

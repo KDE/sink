@@ -38,7 +38,7 @@
 #include "mail_generated.h"
 #include "createentity_generated.h"
 #include "getrssusage.h"
-#include "testutils.h"
+#include "test.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;

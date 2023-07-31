@@ -187,6 +187,26 @@ public:
         return mFilterStages;
     }
 
+
+    class Aggregator {
+    public:
+        enum Operation {
+            Count,
+            Collect
+        };
+
+        Aggregator(const QByteArray &p, Operation o, const QByteArray &c = QByteArray())
+            : resultProperty(p),
+            operation(o),
+            propertyToCollect(c)
+        {
+        }
+
+        QByteArray resultProperty;
+        Operation operation;
+        QByteArray propertyToCollect;
+    };
+
     class Reduce : public FilterStage {
     public:
 
@@ -222,25 +242,6 @@ public:
         struct PropertySelector {
             QByteArray resultProperty;
             Selector selector;
-        };
-
-        class Aggregator {
-        public:
-            enum Operation {
-                Count,
-                Collect
-            };
-
-            Aggregator(const QByteArray &p, Operation o, const QByteArray &c = QByteArray())
-                : resultProperty(p),
-                operation(o),
-                propertyToCollect(c)
-            {
-            }
-
-            QByteArray resultProperty;
-            Operation operation;
-            QByteArray propertyToCollect;
         };
 
         Reduce(const QByteArray &p, const Selector &s)
@@ -314,6 +315,41 @@ public:
     }
 
     /**
+     * For every entity resolve referenced entities and collect properties from them.
+     */
+    class ReferenceResolver : public FilterStage {
+    public:
+        ReferenceResolver(const QByteArray &p)
+            : referenceProperty(p)
+        {
+        }
+
+        template <typename T>
+        ReferenceResolver &collect(const QByteArray &resultProperty)
+        {
+            aggregators << Aggregator(resultProperty, Aggregator::Collect, T::name);
+            return *this;
+        }
+
+        template <typename T>
+        ReferenceResolver &collect()
+        {
+            return collect<T>(QByteArray{T::name} + QByteArray{"Collected"});
+        }
+
+        QByteArray referenceProperty;
+        bool recursive = true;
+        QList<Aggregator> aggregators;
+    };
+
+    ReferenceResolver &resolveReference(const QByteArray &property)
+    {
+        auto referenceResolver = QSharedPointer<ReferenceResolver>::create(property);
+        mFilterStages << referenceResolver;
+        return *referenceResolver;
+    }
+
+    /**
     * "Bloom" on a property.
     *
     * For every encountered value of a property,
@@ -338,7 +374,29 @@ public:
         mFilterStages << QSharedPointer<Bloom>::create(T::name);
     }
 
+    int limit() const
+    {
+        return mLimit;
+    }
+
+    qint64 baseRevision{0};
+
+    typedef std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType &)> FilterFunction;
+
+    void setPostQueryFilter(const FilterFunction &filter) {
+        mPostQueryFilter = filter;
+    }
+
+    FilterFunction getPostQueryFilter() const
+    {
+        return mPostQueryFilter;
+    }
+
+protected:
+    int mLimit{0};
+
 private:
+    FilterFunction mPostQueryFilter;
     Filter mBaseFilterStage;
     QList<QSharedPointer<FilterStage>> mFilterStages;
     QByteArray mType;
@@ -460,17 +518,28 @@ public:
     }
 
 
-    Query(const ApplicationDomain::Entity &value) : mLimit(0)
+    Query(const ApplicationDomain::Entity &value)
     {
         filter(value.identifier());
         resourceFilter(value.resourceInstanceIdentifier());
     }
 
-    Query(Flags flags = Flags()) : mLimit(0), mFlags(flags)
+    Query(Flags flags = Flags()) : mFlags(flags)
     {
     }
 
     QByteArrayList requestedProperties;
+
+    int limit() const
+    {
+        return mLimit;
+    }
+
+    Query &limit(int l)
+    {
+        mLimit = l;
+        return *this;
+    }
 
     void setFlags(Flags flags)
     {
@@ -490,17 +559,6 @@ public:
     bool synchronousQuery() const
     {
         return mFlags.testFlag(SynchronousQuery);
-    }
-
-    Query &limit(int l)
-    {
-        mLimit = l;
-        return *this;
-    }
-
-    int limit() const
-    {
-        return mLimit;
     }
 
     Filter getResourceFilter() const
@@ -543,7 +601,6 @@ public:
 
 private:
     friend class SyncScope;
-    int mLimit;
     Flags mFlags;
     Filter mResourceFilter;
     QByteArray mParentProperty;

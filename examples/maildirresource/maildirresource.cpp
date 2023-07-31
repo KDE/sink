@@ -546,7 +546,8 @@ protected:
                 int expectedCount = 0;
                 Index index("mail.index.folder", transaction);
                 index.lookup(entityId, [&](const QByteArray &sinkId) {
-                        expectedCount++;
+                    expectedCount++;
+                    return true;
                 },
                 [&](const Index::Error &error) {
                     SinkWarning() << "Error in index: " <<  error.message << property;

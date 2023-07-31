@@ -21,10 +21,14 @@
 #include "fulltextindex.h"
 
 #include <QFile>
+#include <QElapsedTimer>
 #include <QDir>
+#include <QDateTime>
 
 #include "log.h"
 #include "definitions.h"
+
+using Sink::Storage::Identifier;
 
 static std::map<std::string, std::string> prefixes()
 {
@@ -59,17 +63,22 @@ FulltextIndex::~FulltextIndex()
     delete mDb;
 }
 
-static std::string idTerm(const QByteArray &key)
+bool FulltextIndex::exists(const QByteArray &resourceInstanceIdentifier)
 {
-    return "Q" + key.toStdString();
+    return QFile{QFile::encodeName(Sink::resourceStorageLocation(resourceInstanceIdentifier) + '/' + "fulltext/iamglass")}.exists();
 }
 
-void FulltextIndex::add(const QByteArray &key, const QString &value)
+static std::string idTerm(const Identifier &key)
 {
-    add(key, {{{}, value}});
+    return "Q" + key.toInternalByteArray().toStdString();
 }
 
-void FulltextIndex::add(const QByteArray &key, const QList<QPair<QString, QString>> &values)
+void FulltextIndex::add(const Identifier &key, const QString &value, const QDateTime &date)
+{
+    add(key, {{{}, value}}, date);
+}
+
+void FulltextIndex::add(const Identifier &key, const QList<QPair<QString, QString>> &values, const QDateTime &date)
 {
     if (!mDb) {
         return;
@@ -92,7 +101,8 @@ void FulltextIndex::add(const QByteArray &key, const QList<QPair<QString, QStrin
                 generator.increase_termpos();
             }
         }
-        document.add_value(0, key.toStdString());
+        document.add_value(0, key.toInternalByteArray().toStdString());
+        document.add_value(1, Xapian::sortable_serialise((double)date.toSecsSinceEpoch()));
 
         const auto idterm = idTerm(key);
         document.add_boolean_term(idterm);
@@ -156,7 +166,7 @@ Xapian::WritableDatabase* FulltextIndex::writableDatabase()
     return db;
 }
 
-void FulltextIndex::remove(const QByteArray &key)
+void FulltextIndex::remove(const Identifier &key)
 {
     if (!mDb) {
         return;
@@ -171,14 +181,16 @@ void FulltextIndex::remove(const QByteArray &key)
     }
 }
 
-QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm, const QByteArray &entity)
+QVector<Identifier> FulltextIndex::lookup(const QString &searchTerm, const Identifier &entity)
 {
     if (!mDb) {
         return {};
     }
-    QVector<QByteArray> results;
+    QVector<Identifier> results;
 
     try {
+        QElapsedTimer time;
+        time.start();
         Xapian::QueryParser parser;
         for (const auto& [name, prefix] : prefixes()) {
             parser.add_prefix(name, prefix);
@@ -193,14 +205,15 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm, const QByte
         parser.set_max_expansion(100, Xapian::Query::WILDCARD_LIMIT_MOST_FREQUENT, Xapian::QueryParser::FLAG_PARTIAL);
         const auto mainQuery = parser.parse_query(searchTerm.toStdString(), Xapian::QueryParser::FLAG_PHRASE|Xapian::QueryParser::FLAG_BOOLEAN|Xapian::QueryParser::FLAG_LOVEHATE|Xapian::QueryParser::FLAG_PARTIAL);
         const auto query = [&] {
-            if (!entity.isEmpty()) {
-                return Xapian::Query{Xapian::Query::OP_AND, Xapian::Query{("Q" + entity).toStdString()}, mainQuery};
+            if (!entity.isNull()) {
+                return Xapian::Query{Xapian::Query::OP_AND, Xapian::Query{idTerm(entity)}, mainQuery};
             }
             return mainQuery;
         }();
         SinkTrace() << "Running xapian query: " << QString::fromStdString(query.get_description());
         Xapian::Enquire enquire(*mDb);
         enquire.set_query(query);
+        enquire.set_sort_by_value_then_relevance(1, true);
 
         const Xapian::doccount limit = [&] {
             switch (searchTerm.size()) {
@@ -208,22 +221,22 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm, const QByte
                 case 2:
                 case 3:
                     return 500;
-                case 4:
-                    return 5000;
                 default:
                     return 20000;
             }
         }();
         Xapian::MSet mset = enquire.get_mset(0, limit);
-        SinkTrace() << "Found " << mset.size() << " results, limited to " << limit;
-        //Print a hint why a query could lack some expected results.
-        if (searchTerm.size() > 4 && mset.size() >= limit) {
-            SinkLog() << "Result set exceeding limit of " << limit << QString::fromStdString(query.get_description());
-        }
+        results.reserve(mset.size());
         for (Xapian::MSetIterator it = mset.begin(); it != mset.end(); it++) {
             auto doc = it.get_document();
             const auto data = doc.get_value(0);
-            results << QByteArray{data.c_str(), int(data.length())};
+            results << Identifier::fromInternalByteArray({data.c_str(), int(data.length())});
+        }
+
+        SinkTrace() << "Found " << mset.size() << " results, limited to " << limit << " in " << Sink::Log::TraceTime(time.elapsed());
+        //Print a hint why a query could lack some expected results (Not for small limits because that becomes noisy)
+        if (searchTerm.size() >= 4 && mset.size() >= limit) {
+            SinkLog() << "Result set exceeding limit of " << limit << QString::fromStdString(query.get_description());
         }
     }
     catch (const Xapian::Error &) {
@@ -245,7 +258,7 @@ qint64 FulltextIndex::getDoccount() const
     return  -1;
 }
 
-FulltextIndex::Result FulltextIndex::getIndexContent(const QByteArray &identifier) const
+FulltextIndex::Result FulltextIndex::getIndexContent(const Identifier &identifier) const
 {
     if (!mDb) {
         {};

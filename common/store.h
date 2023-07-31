@@ -60,6 +60,9 @@ enum Roles
 template <class DomainType>
 QSharedPointer<QAbstractItemModel> SINK_EXPORT loadModel(const Query &query);
 
+template <class DomainType>
+void SINK_EXPORT updateModel(const Query &query, const QSharedPointer<QAbstractItemModel> &model);
+
 /**
  * Create a new entity.
  */

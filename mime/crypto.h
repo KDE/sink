@@ -26,7 +26,6 @@
 
 #include <functional>
 #include <memory>
-#include <gpgme.h>
 #include <QDateTime>
 
 namespace Crypto {
@@ -51,28 +50,31 @@ struct SINK_EXPORT Key {
     QByteArray keyId;
     QByteArray shortKeyId;
     QByteArray fingerprint;
-    bool isExpired = false;
+    bool isUsable = false;
     std::vector<UserId> userIds;
 };
 
 struct SINK_EXPORT Error {
-    gpgme_error_t error;
-    gpgme_err_code_t errorCode() const {
-        return gpgme_err_code(error);
-    }
+    unsigned int error;
     operator bool() const
     {
-        return error != GPG_ERR_NO_ERROR;
+        return error != 0;
     }
 };
 
 struct SINK_EXPORT Signature {
     QByteArray fingerprint;
-    gpgme_sigsum_t summary;
     Error status;
-    gpgme_validity_t validity;
-    gpgme_error_t validity_reason;
     QDateTime creationTime;
+    enum Result {
+        Ok,
+        NotVerified,
+        Expired,
+        KeyNotFound,
+        Invalid
+    };
+    Result result{NotVerified};
+    bool isTrusted{false};
 };
 
 struct SINK_EXPORT VerificationResult {
@@ -82,12 +84,20 @@ struct SINK_EXPORT VerificationResult {
 
 struct SINK_EXPORT Recipient {
     QByteArray keyId;
-    Error status;
+    bool secretKeyAvailable{false};
 };
 
 struct SINK_EXPORT DecryptionResult {
     std::vector<Recipient> recipients;
     Error error;
+    enum Result {
+        NoError,
+        NotEncrypted,
+        PassphraseError,
+        NoSecretKeyError,
+        DecryptionError
+    };
+    Result result{NoError};
 };
 
 struct SINK_EXPORT KeyListResult {
@@ -115,6 +125,7 @@ Expected<Error, std::pair<QByteArray, QString>> SINK_EXPORT sign(const QByteArra
 Expected<Error, QByteArray> SINK_EXPORT signAndEncrypt(const QByteArray &content, const std::vector<Key> &encryptionKeys, const std::vector<Key> &signingKeys);
 
 std::pair<DecryptionResult,VerificationResult> SINK_EXPORT decryptAndVerify(CryptoProtocol protocol, const QByteArray &ciphertext, QByteArray &outdata);
+DecryptionResult SINK_EXPORT decrypt(CryptoProtocol protocol, const QByteArray &ciphertext, QByteArray &outdata);
 VerificationResult SINK_EXPORT verifyDetachedSignature(CryptoProtocol protocol, const QByteArray &signature, const QByteArray &outdata);
 VerificationResult SINK_EXPORT verifyOpaqueSignature(CryptoProtocol protocol, const QByteArray &signature, QByteArray &outdata);
 };

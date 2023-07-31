@@ -8,7 +8,6 @@
 
 #include "log.h"
 #include "test.h"
-#include "tests/testutils.h"
 
 using namespace Imap;
 
@@ -127,6 +126,53 @@ private slots:
 
         VERIFYEXEC(job);
         QCOMPARE(count, 0);
+    }
+
+    void testSessionCache()
+    {
+        Imap::SessionCache sessionCache;
+        {
+            //Using a bogus ip instead of a bogus hostname avoids getting stuck in the hostname lookup
+            ImapServerProxy imap("111.111.1.1", 143, Imap::EncryptionMode::NoEncryption);
+            VERIFYEXEC_FAIL(imap.login("doe", "doe"));
+            VERIFYEXEC(imap.logout());
+            QCOMPARE(sessionCache.size(), 0);
+        }
+        {
+            ImapServerProxy imap("localhost", 143, Imap::EncryptionMode::NoEncryption, Imap::AuthenticationMode::Plain, &sessionCache);
+            VERIFYEXEC(imap.login("doe", "doe"));
+            QCOMPARE(sessionCache.size(), 0);
+            VERIFYEXEC(imap.logout());
+            QCOMPARE(sessionCache.size(), 1);
+
+            auto cachedSession = sessionCache.getSession();
+            QCOMPARE(cachedSession.isExpired(), false);
+            QCOMPARE(cachedSession.isConnected(), true);
+
+            cachedSession.mSession->close();
+            QTest::qWait(1000);
+            QCOMPARE(cachedSession.isConnected(), false);
+
+            //TODO this timeout depends on Imap::CachedSession::mTimer
+            QTest::qWait(30000);
+            QCOMPARE(cachedSession.isExpired(), true);
+        }
+    }
+
+    //TODO Find a way to deal with the below error:
+    // A000029 NO Server ( s ) unavailable to complete operation .\n Sent command: EXAMINE\"INBOX\" (CONDSTORE)
+    // We unfortunately don't really have a way to distinguish transient vs. terminal errors, but I suppose we shouldn't normally run into NO responses at all,
+    // so perhaps just closing the socket makes sense?
+    void testExamine()
+    {
+        Imap::SessionCache sessionCache;
+        ImapServerProxy imap("localhost", 143, Imap::EncryptionMode::NoEncryption, Imap::AuthenticationMode::Plain, &sessionCache);
+        VERIFYEXEC(imap.login("doe", "doe"));
+
+        VERIFYEXEC(imap.examine("INBOX"));
+        VERIFYEXEC_FAIL(imap.examine("INBOX.failure"));
+
+        VERIFYEXEC(imap.examine("INBOX"));
     }
 };
 

@@ -22,7 +22,7 @@
 
 #include <KAsync/Async>
 
-#include <KMime/KMime/KMimeMessage>
+#include <KMime/KMimeMessage>
 #include <KIMAP2/ListJob>
 #include <KIMAP2/Session>
 #include <KIMAP2/FetchJob>
@@ -259,6 +259,11 @@ public:
     bool isEmpty() const
     {
         return mSessions.isEmpty();
+    }
+
+    int size() const
+    {
+        return mSessions.size();
     }
 private:
     QList<CachedSession> mSessions;

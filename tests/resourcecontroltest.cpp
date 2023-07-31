@@ -3,10 +3,10 @@
 #include "dummyresource/resourcefactory.h"
 #include "resourcecontrol.h"
 #include "store.h"
-#include "testutils.h"
 #include "test.h"
 #include "resourceconfig.h"
 #include "resourceaccess.h"
+#include "commands.h"
 
 /**
  * Test starting and stopping of resources.
@@ -78,6 +78,27 @@ private slots:
         QVERIFY(!blockingSocketIsAvailable("sink.dummy.instance2"));
     }
 
+    /**
+     * An existing live-query should not restart the resource due to revisionReplayedCommands.
+     * This was introduced for tests, in regular use the resources are running during the whole query anyways,
+     * because a live query will start the resource via an explicit call to open().
+     */
+    void testRevisionReplayedAfterShutdown()
+    {
+        //Prepare
+        const QByteArray identifier{"sink.dummy.instance2"};
+        QVERIFY(!blockingSocketIsAvailable(identifier));
+        VERIFYEXEC(Sink::ResourceControl::start(identifier));
+        QVERIFY(blockingSocketIsAvailable(identifier));
+        auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
+
+        //Shutdown and immediately send a revision replayed command
+        VERIFYEXEC(Sink::ResourceControl::shutdown(identifier));
+        VERIFYEXEC_FAIL(resourceAccess->sendRevisionReplayedCommand(1));
+
+        //This should not start the resource again
+        QVERIFY(!blockingSocketIsAvailable("sink.dummy.instance2"));
+    }
 
     void testAbortCommandsOnShutdown()
     {
@@ -95,12 +116,47 @@ private slots:
         VERIFYEXEC(Sink::ResourceControl::shutdown(identifier));
         QVERIFY(!blockingSocketIsAvailable(identifier));
         for (int i = 0; i < 10; i++) {
+            Sink::ResourceControl::start(identifier).exec().waitForFinished();
+            Sink::ResourceControl::shutdown(identifier).exec().waitForFinished();
+        }
+        QVERIFY(!blockingSocketIsAvailable(identifier));
+    }
 
+    /**
+     * This test used to trigger a SIGPIPE, before we started to abort the socket on shutdown.
+     */
+    void testResourceShutdownRestartWithCommandLoop()
+    {
+        const QByteArray identifier{"sink.dummy.instance1"};
+        VERIFYEXEC(Sink::ResourceControl::shutdown(identifier));
+        QVERIFY(!blockingSocketIsAvailable(identifier));
+        for (int i = 0; i < 10; i++) {
             auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
-            resourceAccess->sendRevisionReplayedCommand(1).exec();
+            resourceAccess->sendCommand(Sink::Commands::PingCommand).exec();
             resourceAccess->shutdown().exec().waitForFinished();
             Sink::ResourceControl::start(identifier).exec().waitForFinished();
         }
+
+        VERIFYEXEC(Sink::ResourceControl::shutdown(identifier));
+        QVERIFY(!blockingSocketIsAvailable(identifier));
+    }
+
+    /**
+     * This seems to somehow corrupt the stack and crashes with
+     *  malloc(): unaligned tcache chunk detected
+     */
+    void testResourceShutdownCrash()
+    {
+        QSKIP("Results in a crash");
+        const QByteArray identifier{"sink.dummy.instance1"};
+        VERIFYEXEC(Sink::ResourceControl::shutdown(identifier));
+        QVERIFY(!blockingSocketIsAvailable(identifier));
+        {
+            auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
+            QTest::qWait(500);
+            resourceAccess->shutdown().exec().waitForFinished();
+        }
+        Sink::ResourceControl::start(identifier).exec().waitForFinished();
 
         VERIFYEXEC(Sink::ResourceControl::shutdown(identifier));
         QVERIFY(!blockingSocketIsAvailable(identifier));

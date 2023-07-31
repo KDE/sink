@@ -8,8 +8,8 @@
 #include <KDAV2/DavItemCreateJob>
 #include <KDAV2/DavItemsListJob>
 
-#include <KCalCore/Event>
-#include <KCalCore/ICalFormat>
+#include <KCalendarCore/Event>
+#include <KCalendarCore/ICalFormat>
 
 #include "../caldavresource.h"
 
@@ -18,7 +18,6 @@
 #include "common/store.h"
 #include "common/test.h"
 #include "common/query.h"
-#include "tests/testutils.h"
 
 #include <algorithm>
 
@@ -60,14 +59,14 @@ class CalDavTest : public QObject
 
         KDAV2::DavUrl testItemUrl(url, KDAV2::CardDav);
 
-        auto event = QSharedPointer<KCalCore::Event>::create();
+        auto event = QSharedPointer<KCalendarCore::Event>::create();
         event->setSummary(subject);
         event->setDtStart(QDateTime::currentDateTime());
         event->setDtEnd(QDateTime::currentDateTime().addSecs(3600));
         event->setCreated(QDateTime::currentDateTime());
         event->setUid(subject);
 
-        auto data = KCalCore::ICalFormat().toICalString(event).toUtf8();
+        auto data = KCalendarCore::ICalFormat().toICalString(event).toUtf8();
 
         KDAV2::DavItem item(testItemUrl, QStringLiteral("text/calendar"), data, QString());
         auto createJob = new KDAV2::DavItemCreateJob(item);
@@ -163,12 +162,12 @@ class CalDavTest : public QObject
             return itemFetchJob->item();
         })();
 
-        auto incidence = KCalCore::ICalFormat().readIncidence(davitem.data());
-        auto calevent = incidence.dynamicCast<KCalCore::Event>();
+        auto incidence = KCalendarCore::ICalFormat().readIncidence(davitem.data());
+        auto calevent = incidence.dynamicCast<KCalendarCore::Event>();
         Q_ASSERT(calevent);
 
         calevent->setSummary(newSummary);
-        auto newical = KCalCore::ICalFormat().toICalString(calevent);
+        auto newical = KCalendarCore::ICalFormat().toICalString(calevent);
 
         davitem.setData(newical.toUtf8());
         auto itemModifyJob = new KDAV2::DavItemModifyJob(davitem);
@@ -287,7 +286,7 @@ private slots:
 
         auto calendar = Sink::Store::readOne<Calendar>(Sink::Query{}.filter<Calendar::Name>("personal"));
 
-        auto event = QSharedPointer<KCalCore::Event>::create();
+        auto event = QSharedPointer<KCalendarCore::Event>::create();
         event->setSummary("Hello");
         event->setDtStart(QDateTime::currentDateTime());
         event->setDtEnd(QDateTime::currentDateTime().addSecs(3600));
@@ -295,7 +294,7 @@ private slots:
         auto addedEventUid = QUuid::createUuid().toString();
         event->setUid(addedEventUid);
 
-        auto ical = KCalCore::ICalFormat().toICalString(event);
+        auto ical = KCalendarCore::ICalFormat().toICalString(event);
         Event sinkEvent(mResourceInstanceIdentifier);
         sinkEvent.setIcal(ical.toUtf8());
         sinkEvent.setCalendar(calendar);
@@ -311,13 +310,13 @@ private slots:
         //Modify
         {
             auto event = events.first();
-            auto incidence = KCalCore::ICalFormat().readIncidence(event.getIcal());
-            auto calevent = incidence.dynamicCast<KCalCore::Event>();
-            QVERIFY2(calevent, "Cannot convert to KCalCore event");
+            auto incidence = KCalendarCore::ICalFormat().readIncidence(event.getIcal());
+            auto calevent = incidence.dynamicCast<KCalendarCore::Event>();
+            QVERIFY2(calevent, "Cannot convert to KCalendarCore event");
 
             calevent->setSummary("Hello World!");
-            auto dummy = QSharedPointer<KCalCore::Event>(calevent);
-            auto newical = KCalCore::ICalFormat().toICalString(dummy);
+            auto dummy = QSharedPointer<KCalendarCore::Event>(calevent);
+            auto newical = KCalendarCore::ICalFormat().toICalString(dummy);
 
             event.setIcal(newical.toUtf8());
 
@@ -350,14 +349,14 @@ private slots:
 
         auto calendar = Sink::Store::readOne<Calendar>(Sink::Query{}.filter<Calendar::Name>("personal"));
 
-        auto todo = QSharedPointer<KCalCore::Todo>::create();
+        auto todo = QSharedPointer<KCalendarCore::Todo>::create();
         todo->setSummary("Hello");
         todo->setDtStart(QDateTime::currentDateTime());
         todo->setCreated(QDateTime::currentDateTime());
         auto addedTodoUid = QUuid::createUuid().toString();
         todo->setUid(addedTodoUid);
 
-        auto ical = KCalCore::ICalFormat().toICalString(todo);
+        auto ical = KCalendarCore::ICalFormat().toICalString(todo);
         Todo sinkTodo(mResourceInstanceIdentifier);
         sinkTodo.setIcal(ical.toUtf8());
         sinkTodo.setCalendar(calendar);
@@ -372,13 +371,13 @@ private slots:
         //Modify
         {
             auto todo = todos.first();
-            auto incidence = KCalCore::ICalFormat().readIncidence(todo.getIcal());
-            auto caltodo = incidence.dynamicCast<KCalCore::Todo>();
-            QVERIFY2(caltodo, "Cannot convert to KCalCore todo");
+            auto incidence = KCalendarCore::ICalFormat().readIncidence(todo.getIcal());
+            auto caltodo = incidence.dynamicCast<KCalendarCore::Todo>();
+            QVERIFY2(caltodo, "Cannot convert to KCalendarCore todo");
 
             caltodo->setSummary("Hello World!");
-            auto dummy = QSharedPointer<KCalCore::Todo>(caltodo);
-            auto newical = KCalCore::ICalFormat().toICalString(dummy);
+            auto dummy = QSharedPointer<KCalendarCore::Todo>(caltodo);
+            auto newical = KCalendarCore::ICalFormat().toICalString(dummy);
 
             todo.setIcal(newical.toUtf8());
 
@@ -411,7 +410,7 @@ private slots:
 
         auto calendar = Sink::Store::readOne<Calendar>(Sink::Query{}.filter<Calendar::Name>("personal"));
 
-        auto event = QSharedPointer<KCalCore::Event>::create();
+        auto event = QSharedPointer<KCalendarCore::Event>::create();
         event->setSummary("Hello");
         event->setDtStart(QDateTime::currentDateTime());
         event->setDtEnd(QDateTime::currentDateTime().addSecs(3600));
@@ -419,7 +418,7 @@ private slots:
         auto addedEventUid = QUuid::createUuid().toString();
         event->setUid(addedEventUid);
 
-        auto ical = KCalCore::ICalFormat().toICalString(event);
+        auto ical = KCalendarCore::ICalFormat().toICalString(event);
         Event sinkEvent(mResourceInstanceIdentifier);
         sinkEvent.setIcal(ical.toUtf8());
         sinkEvent.setCalendar(calendar);
@@ -434,11 +433,11 @@ private slots:
         //Change the item with sink as well, this will create a conflict
         {
             auto event = Sink::Store::readOne<Event>(Sink::Query().filter("uid", Sink::Query::Comparator(addedEventUid)));
-            auto calevent = KCalCore::ICalFormat().readIncidence(event.getIcal()).dynamicCast<KCalCore::Event>();
+            auto calevent = KCalendarCore::ICalFormat().readIncidence(event.getIcal()).dynamicCast<KCalendarCore::Event>();
             QVERIFY(calevent);
 
             calevent->setSummary("Sink Hello World!");
-            event.setIcal(KCalCore::ICalFormat().toICalString(calevent).toUtf8());
+            event.setIcal(KCalendarCore::ICalFormat().toICalString(calevent).toUtf8());
 
             VERIFYEXEC(Sink::Store::modify(event));
             VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
@@ -555,13 +554,13 @@ private slots:
         calendar.setName("calendar5");
         VERIFYEXEC(Sink::Store::create(calendar));
 
-        auto event = QSharedPointer<KCalCore::Event>::create();
+        auto event = QSharedPointer<KCalendarCore::Event>::create();
         event->setSummary("eventToRemove");
         event->setDtStart(QDateTime::currentDateTime());
         event->setCreated(QDateTime::currentDateTime());
         event->setUid("eventToRemove");
 
-        auto ical = KCalCore::ICalFormat().toICalString(event);
+        auto ical = KCalendarCore::ICalFormat().toICalString(event);
         Event sinkEvent(mResourceInstanceIdentifier);
         sinkEvent.setIcal(ical.toUtf8());
         sinkEvent.setCalendar(calendar);

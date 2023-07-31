@@ -75,6 +75,7 @@ typedef IndexConfig<Event,
 
 typedef IndexConfig<Todo,
         ValueIndex<Todo::Uid>,
+        ValueIndex<Todo::ParentUid>,
         ValueIndex<Todo::Calendar>
     > TodoIndexConfig;
 
@@ -249,6 +250,7 @@ QMap<QByteArray, int> TypeImplementation<Todo>::typeDatabases()
 void TypeImplementation<Todo>::configure(PropertyMapper &propertyMapper)
 {
     SINK_REGISTER_SERIALIZER(propertyMapper, Todo, Uid, uid);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Todo, ParentUid, parentUid);
     SINK_REGISTER_SERIALIZER(propertyMapper, Todo, Summary, summary);
     SINK_REGISTER_SERIALIZER(propertyMapper, Todo, Description, description);
     SINK_REGISTER_SERIALIZER(propertyMapper, Todo, CompletedDate, completedDate);

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.16)
 
 cmake_policy(SET CMP0048 NEW)
 cmake_policy(SET CMP0028 NEW)
@@ -9,10 +9,8 @@ project(sink VERSION 0.9.0)
 option(BUILD_MAILDIR "BUILD_MAILDIR" ON)
 option(BUILD_DAV "BUILD_DAV" ON)
 option(CATCH_ERRORS "CATCH_ERRORS" OFF)
-option(ENABLE_MEMCHECK "Build valgrind tests" OFF)
-option(ENABLE_ASAN "Enable the address sanitizer" OFF)
-option(ENABLE_TSAN "Enable the thread sanitizer" OFF)
-option(ENABLE_TIDY "Enable the static code analyzer" OFF)
+# Requires the docker container from the kube repo
+option(ENABLE_INTEGRATION_TESTS "Enable integration tests" OFF)
 
 # ECM setup
 find_package(ECM 5.29.0 REQUIRED NO_MODULE)
@@ -21,12 +19,14 @@ set(CMAKE_MODULE_PATH
         ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules
         ${CMAKE_CURRENT_SOURCE_DIR}/tests
         ${CMAKE_MODULE_PATH})
+set(CMAKE_CXX_STANDARD 17)
 
 include(FeatureSummary)
 include(GenerateExportHeader)
 include(CMakePackageConfigHelpers)
 include(ECMSetupVersion)
 include(KDEInstallDirs)
+include(KDECompilerSettings)
 #Avoid building appstreamtest
 set(KDE_SKIP_TEST_SETTINGS true)
 #Pick up rpath settings
@@ -47,45 +47,7 @@ find_package(KAsync REQUIRED 0.3)
 find_package(LMDB REQUIRED 0.9)
 find_package(Xapian REQUIRED 1.4)
 find_package(Gpgme REQUIRED)
-
-if (${ENABLE_MEMCHECK})
-    message("Enabled memcheck")
-    find_program(MEMORYCHECK_COMMAND valgrind)
-    if(NOT MEMORYCHECK_COMMAND)
-        message(FATAL_ERROR "valgrind not found!")
-    endif()
-    set(MEMORYCHECK_COMMAND_OPTIONS "--trace-children=yes --leak-check=full")
-endif()
-
-if (${ENABLE_ASAN})
-    message("Enabled ASAN")
-    set(SINK_ASAN_FLAG "-fsanitize=address -fPIE -fno-omit-frame-pointer -O1 ")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SINK_ASAN_FLAG}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SINK_ASAN_FLAG}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${SINK_ASAN_FLAG}")
-    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${SINK_ASAN_FLAG}")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${SINK_ASAN_FLAG}")
-endif()
-
-if (${ENABLE_TSAN})
-    message("Enabled TSAN")
-    set(SINK_TSAN_FLAG "-fsanitize=thread -fPIE -fno-omit-frame-pointer -O1 ")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SINK_TSAN_FLAG}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SINK_TSAN_FLAG}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${SINK_TSAN_FLAG}")
-    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${SINK_TSAN_FLAG}")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${SINK_TSAN_FLAG}")
-endif()
-
-if (${ENABLE_TIDY})
-    find_program(
-        CLANG_TIDY
-        NAMES "clang-tidy"
-        DOC "Path to clang-tidy executable"
-    )
-    set(CMAKE_CXX_CLANG_TIDY ${CLANG_TIDY} -checks=-*,modernize-use-override -fix --fix-errors)
-endif()
-
+find_package(zstd REQUIRED)
 
 #Clang-format support
 add_custom_command(

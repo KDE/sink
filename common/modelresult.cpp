@@ -310,7 +310,8 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
     const auto childId = qHash(*value);
     const auto pId = parentId(value);
     if (mEntities.contains(childId)) {
-        SinkWarningCtx(mLogCtx) << "Entity already in model: " << value->identifier();
+
+        mEntitiesToRemove.remove(childId);
         return;
     }
     const auto keys = mTree[pId];
@@ -367,8 +368,25 @@ void ModelResult<T, Ptr>::setFetcher(const std::function<void()> &fetcher)
 }
 
 template <class T, class Ptr>
+void ModelResult<T, Ptr>::updateQuery(const Sink::Query &query)
+{
+    SinkTraceCtx(mLogCtx) << "Triggering query update";
+    mQuery = query;
+    mPropertyColumns = query.requestedProperties;
+    mEntitiesToRemove = mEntities.keys().toSet();
+    mFetchComplete = false;
+    mFetchInProgress = false;
+    fetchMore({});
+}
+
+template <class T, class Ptr>
 void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Ptr &emitter)
 {
+    if (mEmitter) {
+        mEmitter->waitForMethodExecutionEnd();
+        mEmitter.clear();
+    }
+
     setFetcher([this]() { mEmitter->fetch(); });
 
     QPointer<QObject> guard(this);
@@ -401,6 +419,12 @@ void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Pt
         mFetchInProgress = false;
         mFetchedAll = fetchedAll;
         mFetchComplete = true;
+
+        for (const auto &entityId : mEntitiesToRemove) {
+            remove(mEntities.value(entityId));
+        }
+        mEntitiesToRemove.clear();
+
         emit dataChanged({}, {}, QVector<int>() << ChildrenFetchedRole);
     });
     mEmitter = emitter;

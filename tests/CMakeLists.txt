@@ -39,25 +39,28 @@ manual_tests (
 
 auto_tests (
     clientapitest
-    resourceconfigtest
     storagetest
     domainadaptortest
     messagequeuetest
     indextest
     fulltextindextest
-    resourcecommunicationtest
     pipelinetest
     synchronizertest
+    resourcecommunicationtest
+    testaccounttest
+    entitystoretest
+    datastorequerytest
+)
+
+integration_tests (
+    resourceconfigtest
     querytest
     modelinteractivitytest
     inspectiontest
     accountstest
-    testaccounttest
     dummyresourcemailtest
     interresourcemovetest
     notificationtest
-    entitystoretest
-    datastorequerytest
     upgradetest
     resourcecontroltest
 )
@@ -69,10 +72,12 @@ else()
         dummyresourcebenchmark
         dummyresourcewritebenchmark
     )
-    auto_tests (
+    integration_tests (
         dummyresourcetest
     )
-    target_link_libraries(dummyresourcetest sink_resource_dummy)
+    if (${ENABLE_INTEGRATION_TESTS})
+        target_link_libraries(dummyresourcetest sink_resource_dummy)
+    endif()
     target_link_libraries(dummyresourcebenchmark sink_resource_dummy)
     target_link_libraries(dummyresourcewritebenchmark sink_resource_dummy)
 endif()

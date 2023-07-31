@@ -162,6 +162,7 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
     if (mSessionCache) {
         auto session = mSessionCache->getSession();
         if (session.isValid()) {
+            SinkLog() << "Got existing session from session cache.";
             mSession = session.mSession;
             mCapabilities = session.mCapabilities;
             mNamespaces = session.mNamespaces;
@@ -226,6 +227,7 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
 KAsync::Job<void> ImapServerProxy::logout()
 {
     if (mSessionCache) {
+        SinkLog() << "Recycling session.";
         mSessionCache->recycleSession({mSession, mCapabilities, mNamespaces});
         return KAsync::null();
     }

@@ -11,15 +11,14 @@
 #include "log.h"
 #include "modelresult.h"
 #include "test.h"
-#include "testutils.h"
 #include "applicationdomaintype.h"
 #include "queryrunner.h"
 #include "adaptorfactoryregistry.h"
 #include "fulltextindex.h"
 
 #include <KMime/Message>
-#include <KCalCore/Event>
-#include <KCalCore/ICalFormat>
+#include <KCalendarCore/Event>
+#include <KCalendarCore/ICalFormat>
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -35,6 +34,8 @@ class QueryTest : public QObject
 private slots:
     void initTestCase()
     {
+        qRegisterMetaType<QList<QPersistentModelIndex>>("QList<QPersistentModelIndex>");
+        qRegisterMetaType<QAbstractItemModel::LayoutChangeHint>("QAbstractItemModel::LayoutChangeHint");
         Sink::Test::initTest();
         auto factory = Sink::ResourceFactory::load("sink.dummy");
         QVERIFY(factory);
@@ -1183,6 +1184,7 @@ private slots:
         auto mail1 = Mail::createEntity<Mail>("sink.dummy.instance1");
         mail1.setExtractedMessageId("mail1");
         mail1.setFolder(folder1);
+        mail1.setUnread(true);
         VERIFYEXEC(Sink::Store::create(mail1));
 
         // Ensure all local data is processed
@@ -1801,6 +1803,57 @@ private slots:
         }
     }
 
+    void testUTF8MailFulltext()
+    {
+        QByteArray id1;
+        // Setup
+        {
+            {
+                auto msg = KMime::Message::Ptr::create();
+                msg->subject()->fromUnicodeString("sübject", "utf8");
+                msg->setBody("büdi");
+                msg->from()->fromUnicodeString("\"John Düderli\"<john@doe.com>", "utf8");
+                msg->assemble();
+
+                auto mail = ApplicationDomainType::createEntity<Mail>("sink.dummy.instance1");
+                mail.setExtractedMessageId("test1");
+                mail.setFolder("folder1");
+                mail.setMimeMessage(msg->encodedContent());
+                VERIFYEXEC(Sink::Store::create<Mail>(mail));
+                id1 = mail.identifier();
+            }
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+            {
+                FulltextIndex index("sink.dummy.instance1", Sink::Storage::DataStore::ReadOnly);
+                qInfo() << QString("found document 1 with terms: ") + index.getIndexContent(id1).terms.join(", ");
+            }
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter({}, Sink::QueryBase::Comparator(QString("sübject"), Sink::QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter({}, Sink::QueryBase::Comparator(QString("büdi"), Sink::QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter({}, Sink::QueryBase::Comparator(QString("düderli"), Sink::QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
+        }
+    }
+
     void testLiveMailFulltext()
     {
         Sink::Query query;
@@ -2003,7 +2056,7 @@ private slots:
             QSignalSpy resetSpy(model.data(), &QAbstractItemModel::modelReset);
 
             mail3.setUnread(false);
-            VERIFYEXEC(Sink::Store::modify(mail1));
+            VERIFYEXEC(Sink::Store::modify(mail3));
 
             QTRY_COMPARE(changedSpy.size(), 1);
             QCOMPARE(insertedSpy.size(), 0);
@@ -2140,23 +2193,24 @@ private slots:
         {
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
-            query.filter<Mail::Date>(QueryBase::Comparator(QVariantList{QDateTime::fromString("2018-05-22T13:49:41Z", Qt::ISODate), QDateTime::fromString("2118-05-30T13:49:41Z", Qt::ISODate)}, QueryBase::Comparator::Within));
+            query.filter<Mail::Date>(QueryBase::Comparator(QVariantList{QDateTime::fromString("2018-05-22T13:49:41Z", Qt::ISODate), QDateTime::fromString("2080-05-30T13:49:41Z", Qt::ISODate)}, QueryBase::Comparator::Within));
             auto model = Sink::Store::loadModel<Mail>(query);
             QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 4);
+            //This query also finds the mail without date, because we assign a default date of current utc
+            QCOMPARE(model->rowCount(), 5);
         }
     }
 
     void testOverlap()
     {
         auto createEvent = [] (const QString &start, const QString &end) {
-            auto icalEvent = KCalCore::Event::Ptr::create();
+            auto icalEvent = KCalendarCore::Event::Ptr::create();
             icalEvent->setSummary("test");
             icalEvent->setDtStart(QDateTime::fromString(start, Qt::ISODate));
             icalEvent->setDtEnd(QDateTime::fromString(end, Qt::ISODate));
 
             Event event("sink.dummy.instance1");
-            event.setIcal(KCalCore::ICalFormat().toICalString(icalEvent).toUtf8());
+            event.setIcal(KCalendarCore::ICalFormat().toICalString(icalEvent).toUtf8());
             VERIFYEXEC(Sink::Store::create(event));
         };
 
@@ -2197,13 +2251,13 @@ private slots:
     void testOverlapLive()
     {
         auto createEvent = [] (const QString &start, const QString &end) {
-            auto icalEvent = KCalCore::Event::Ptr::create();
+            auto icalEvent = KCalendarCore::Event::Ptr::create();
             icalEvent->setSummary("test");
             icalEvent->setDtStart(QDateTime::fromString(start, Qt::ISODate));
             icalEvent->setDtEnd(QDateTime::fromString(end, Qt::ISODate));
 
             Event event = Event::createEntity<Event>("sink.dummy.instance1");
-            event.setIcal(KCalCore::ICalFormat().toICalString(icalEvent).toUtf8());
+            event.setIcal(KCalendarCore::ICalFormat().toICalString(icalEvent).toUtf8());
             VERIFYEXEC_RET(Sink::Store::create(event), {});
             return event;
         };
@@ -2240,14 +2294,14 @@ private slots:
 
     void testRecurringEvents()
     {
-        auto icalEvent = KCalCore::Event::Ptr::create();
+        auto icalEvent = KCalendarCore::Event::Ptr::create();
         icalEvent->setSummary("test");
         icalEvent->setDtStart(QDateTime::fromString("2018-05-10T13:00:00Z", Qt::ISODate));
         icalEvent->setDtEnd(QDateTime::fromString("2018-05-10T14:00:00Z", Qt::ISODate));
         icalEvent->recurrence()->setWeekly(3);
 
         Event event = Event::createEntity<Event>("sink.dummy.instance1");
-        event.setIcal(KCalCore::ICalFormat().toICalString(icalEvent).toUtf8());
+        event.setIcal(KCalendarCore::ICalFormat().toICalString(icalEvent).toUtf8());
         VERIFYEXEC(Sink::Store::create(event));
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
 
@@ -2264,6 +2318,138 @@ private slots:
 
         VERIFYEXEC(Sink::Store::remove(event));
         QTRY_COMPARE(model->rowCount(), 0);
+    }
+
+    void testRecurringEventsWithExceptions()
+    {
+        {
+            auto icalEvent = KCalendarCore::Event::Ptr::create();
+            icalEvent->setSummary("test");
+            icalEvent->setDtStart(QDateTime::fromString("2018-05-10T13:00:00Z", Qt::ISODate));
+            icalEvent->setDtEnd(QDateTime::fromString("2018-05-10T14:00:00Z", Qt::ISODate));
+            icalEvent->recurrence()->setWeekly(3);
+
+            Event event = Event::createEntity<Event>("sink.dummy.instance1");
+            event.setIcal(KCalendarCore::ICalFormat().toICalString(icalEvent).toUtf8());
+            VERIFYEXEC(Sink::Store::create(event));
+        }
+
+
+        //Exception
+        {
+            auto icalEvent = KCalendarCore::Event::Ptr::create();
+            icalEvent->setSummary("test");
+            icalEvent->setRecurrenceId(QDateTime::fromString("2018-05-17T13:00:00Z", Qt::ISODate));
+            icalEvent->setDtStart(QDateTime::fromString("2018-07-10T13:00:00Z", Qt::ISODate));
+            icalEvent->setDtEnd(QDateTime::fromString("2018-07-10T14:00:00Z", Qt::ISODate));
+
+            Event event = Event::createEntity<Event>("sink.dummy.instance1");
+            event.setIcal(KCalendarCore::ICalFormat().toICalString(icalEvent).toUtf8());
+            VERIFYEXEC(Sink::Store::create(event));
+        }
+
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
+                QVariantList{ QDateTime::fromString("2018-05-15T12:00:00Z", Qt::ISODate),
+                    QDateTime::fromString("2018-05-30T13:00:00Z", Qt::ISODate) },
+                QueryBase::Comparator::Overlap));
+            auto model = Sink::Store::loadModel<Event>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 2);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
+                QVariantList{ QDateTime::fromString("2018-07-15T12:00:00Z", Qt::ISODate),
+                    QDateTime::fromString("2018-07-30T13:00:00Z", Qt::ISODate) },
+                QueryBase::Comparator::Overlap));
+            auto model = Sink::Store::loadModel<Event>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
+        }
+    }
+
+
+    void testQueryUpdate()
+    {
+        // Setup
+        {
+            Mail mail("sink.dummy.instance1");
+            mail.setExtractedMessageId("test1");
+            mail.setFolder("folder1");
+            VERIFYEXEC(Sink::Store::create<Mail>(mail));
+        }
+        {
+            Mail mail("sink.dummy.instance1");
+            mail.setExtractedMessageId("test2");
+            mail.setFolder("folder2");
+            VERIFYEXEC(Sink::Store::create<Mail>(mail));
+        }
+
+        // Test
+        Sink::Query query;
+        query.resourceFilter("sink.dummy.instance1");
+        query.setFlags(Query::LiveQuery);
+        query.filter<Mail::Folder>("folder1");
+
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_COMPARE(model->rowCount(), 1);
+
+        {
+            Sink::Query newQuery;
+            newQuery.resourceFilter("sink.dummy.instance1");
+
+            Sink::Store::updateModel<Mail>(newQuery, model);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 2);
+        }
+        {
+
+            Sink::Query newQuery;
+            newQuery.resourceFilter("sink.dummy.instance1");
+            newQuery.filter<Mail::Folder>("folder2");
+
+            Sink::Store::updateModel<Mail>(newQuery, model);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
+            QCOMPARE(model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>()->getMessageId(), "test2");
+        }
+        {
+
+            Sink::Query newQuery;
+            newQuery.resourceFilter("sink.dummy.instance1");
+            newQuery.filter<Mail::Folder>("folder1");
+
+            Sink::Store::updateModel<Mail>(newQuery, model);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
+            QCOMPARE(model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>()->getMessageId(), "test1");
+        }
+        //Quickly run two queries without waiting for the first to complete.
+        {
+            {
+
+                Sink::Query newQuery;
+                newQuery.resourceFilter("sink.dummy.instance1");
+                newQuery.filter<Mail::Folder>("folder2");
+
+                Sink::Store::updateModel<Mail>(newQuery, model);
+            }
+
+            Sink::Query newQuery;
+            newQuery.resourceFilter("sink.dummy.instance1");
+            newQuery.filter<Mail::Folder>("folder1");
+
+            Sink::Store::updateModel<Mail>(newQuery, model);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
+            QCOMPARE(model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>()->getMessageId(), "test1");
+        }
     }
 
 };

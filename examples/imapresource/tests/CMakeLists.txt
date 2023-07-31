@@ -7,14 +7,16 @@ include_directories(
 
 include(SinkTest)
 
-auto_tests (
+integration_tests (
     imapserverproxytest
     imapmailtest
     imapmailsynctest
 )
-target_link_libraries(imapserverproxytest sink_resource_imap)
-target_link_libraries(imapmailtest sink_resource_imap)
-target_link_libraries(imapmailsynctest sink_resource_imap)
+if (${ENABLE_INTEGRATION_TESTS})
+    target_link_libraries(imapserverproxytest sink_resource_imap)
+    target_link_libraries(imapmailtest sink_resource_imap)
+    target_link_libraries(imapmailsynctest sink_resource_imap)
+endif()
 
 manual_tests (
     imapmailsyncbenchmark

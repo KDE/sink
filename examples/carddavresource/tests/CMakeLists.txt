@@ -3,7 +3,9 @@ include_directories(${CMAKE_BINARY_DIR})
 
 include(SinkTest)
 
-auto_tests (
+integration_tests (
     carddavtest
 )
-target_link_libraries(carddavtest sink_resource_carddav KF5::Contacts)
+if (${ENABLE_INTEGRATION_TESTS})
+    target_link_libraries(carddavtest sink_resource_carddav KF5::Contacts)
+endif()

@@ -86,6 +86,8 @@ add_library(${PROJECT_NAME} SHARED
     storage_lmdb.cpp)
 
 
+kde_target_enable_exceptions(${PROJECT_NAME} PUBLIC)
+
 generate_flatbuffers(
     ${PROJECT_NAME}
 
@@ -134,6 +136,7 @@ PRIVATE
     KF5::CalendarCore
     ${XAPIAN_LIBRARIES}
     sink_mimetreeparser
+    zstd::zstd
 )
 install(TARGETS ${PROJECT_NAME}
     EXPORT SinkTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS} ${LIBRARY_NAMELINK} )

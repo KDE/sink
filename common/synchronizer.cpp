@@ -745,7 +745,7 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
         oldRemoteId = syncStore().resolveLocalId(type, uid);
         //oldRemoteId can be empty if the resource implementation didn't return a remoteid
     }
-    SinkLogCtx(mLogCtx) << "Replaying: " << key << "Type: " << type << "Uid: " << uid << "Rid: " << oldRemoteId << "Revision: " << metadataBuffer->revision();
+    SinkLogCtx(mLogCtx) << "Replaying: " << key << "Type: " << type << "Uid: " << uid << "Rid: " << oldRemoteId << "Revision: " << metadataBuffer->revision() << "Modified properties" << modifiedProperties;
 
     //If the entity has been removed already and this is not the removal, skip over.
     //This is important so we can unblock changereplay by removing entities.

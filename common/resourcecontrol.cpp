@@ -34,15 +34,16 @@ namespace Sink {
 
 KAsync::Job<void> ResourceControl::shutdown(const QByteArray &identifier)
 {
-    SinkTrace() << "shutdown " << identifier;
+    const auto ctx = Log::Context{identifier + ".resourcecontrol"};
+    SinkTraceCtx(ctx) << "shutdown " << identifier;
     auto time = QSharedPointer<QTime>::create();
     time->start();
 
     auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
     return resourceAccess->shutdown()
         .addToContext(resourceAccess)
-        .then<void>([resourceAccess, time](KAsync::Future<void> &future) {
-            SinkTrace() << "Shutdown command complete, waiting for shutdown." << Log::TraceTime(time->elapsed());
+        .then<void>([resourceAccess, time, ctx](KAsync::Future<void> &future) {
+            SinkTraceCtx(ctx) << "Shutdown command complete, waiting for shutdown." << Log::TraceTime(time->elapsed());
             if (!resourceAccess->isReady()) {
                 future.setFinished();
                 return;
@@ -55,8 +56,8 @@ KAsync::Job<void> ResourceControl::shutdown(const QByteArray &identifier)
                     future.setFinished();
                 }
             });
-        }).then([time] {
-            SinkTrace() << "Shutdown complete." << Log::TraceTime(time->elapsed());
+        }).then([time, ctx] {
+            SinkTraceCtx(ctx) << "Shutdown complete." << Log::TraceTime(time->elapsed());
         });
 }
 

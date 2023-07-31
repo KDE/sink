@@ -20,12 +20,12 @@
 
 #include "eventpreprocessor.h"
 
-#include <KCalCore/ICalFormat>
+#include <KCalendarCore/ICalFormat>
 #include <QDateTime>
 
 void EventPropertyExtractor::updatedIndexedProperties(Event &event, const QByteArray &rawIcal)
 {
-    auto icalEvent = KCalCore::ICalFormat().readIncidence(rawIcal).dynamicCast<KCalCore::Event>();
+    auto icalEvent = KCalendarCore::ICalFormat().readIncidence(rawIcal).dynamicCast<KCalendarCore::Event>();
     if(!icalEvent) {
         SinkWarning() << "Invalid ICal to process, ignoring: " << rawIcal;
         return;
@@ -51,6 +51,23 @@ void EventPropertyExtractor::updatedIndexedProperties(Event &event, const QByteA
             event.setExtractedEndTime(ranges.last().second);
             event.setProperty("indexRanges", QVariant::fromValue(ranges));
         }
+    }
+    if (icalEvent->hasRecurrenceId()) {
+        const auto duration = icalEvent->hasDuration() ? icalEvent->duration().asSeconds() : 0;
+        QList<QPair<QDateTime, QDateTime>> ranges;
+
+        const auto start = icalEvent->dtStart();
+        ranges.append(qMakePair(start, start.addSecs(duration)));
+
+        const auto recurrenceId = icalEvent->recurrenceId();
+        ranges.append(qMakePair(recurrenceId, recurrenceId.addSecs(duration)));
+
+        //recurrenceId can be earlier or later and we need to cover both cases
+        std::sort(ranges.begin(), ranges.end());
+        event.setExtractedStartTime(ranges.first().first);
+        event.setExtractedEndTime(ranges.last().second);
+
+        event.setProperty("indexRanges", QVariant::fromValue(ranges));
     }
 }
 

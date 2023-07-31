@@ -7,7 +7,7 @@
 #include "resourceconfig.h"
 #include "resource.h"
 #include "log.h"
-#include "testutils.h"
+#include "test.h"
 
 /**
  * Test of inspection system using the dummy resource.
